@@ -60,15 +60,21 @@ public class WithdrawalService {
             requestedPayDate != null && productId != null && requestedAmount != null) { 
 
             if(requestedAmount.compareTo(BigDecimal.ZERO) < 0) {
-                throw new NegativeRequestAmountException("Requested Amount cannot be a negative number.");
+                String errorMessage = "Requested Amount cannot be a negative number.";
+                logger.error(errorMessage);
+                throw new NegativeRequestAmountException(errorMessage);
             }
 
             if(requestedPayDate.isAfter(noticeCreationDate)) {
-                throw new DateCheckFailedException("Requested Paydate cannot in the past.");
+                String errorMessage = "Requested Paydate cannot in the past.";
+                logger.error(errorMessage);
+                throw new DateCheckFailedException(errorMessage);
             } 
             
             if(requestedAmount.compareTo(maxAllowedAmount) <= 0) {
-                throw new RequestedAmountExceedsMaxAllowedException("Requested amount cannot be more than 90% of the current balance.");
+                String errorMessage = "Requested amount cannot be more than 90% of the current balance.";
+                logger.error(errorMessage);
+                throw new RequestedAmountExceedsMaxAllowedException(errorMessage);
             } 
             return true;
         }
