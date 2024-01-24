@@ -11,6 +11,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.enviro.assessment.grad001.bokangmakibinye.exceptions.DateCheckFailedException;
+import com.enviro.assessment.grad001.bokangmakibinye.exceptions.InvestorIdMismatchException;
 import com.enviro.assessment.grad001.bokangmakibinye.exceptions.NegativeRequestAmountException;
 import com.enviro.assessment.grad001.bokangmakibinye.exceptions.NotFoundException;
 import com.enviro.assessment.grad001.bokangmakibinye.exceptions.RequestedAmountExceedsMaxAllowedException;
@@ -65,13 +66,13 @@ public class WithdrawalService {
                 throw new NegativeRequestAmountException(errorMessage);
             }
 
-            if(requestedPayDate.isAfter(noticeCreationDate)) {
-                String errorMessage = "Requested Paydate cannot in the past.";
+            if(!requestedPayDate.isAfter(noticeCreationDate)) {
+                String errorMessage = "Requested Paydate cannot be in the past.";
                 logger.error(errorMessage);
                 throw new DateCheckFailedException(errorMessage);
             } 
             
-            if(requestedAmount.compareTo(maxAllowedAmount) <= 0) {
+            if(!(requestedAmount.compareTo(maxAllowedAmount) <= 0)) {
                 String errorMessage = "Requested amount cannot be more than 90% of the current balance.";
                 logger.error(errorMessage);
                 throw new RequestedAmountExceedsMaxAllowedException(errorMessage);
@@ -86,7 +87,14 @@ public class WithdrawalService {
         
         Product product = getProductById(withdrawalNoticeRequest.getProductId());
         Investor investor = getInvestorById(withdrawalNoticeRequest.getInvestorId());
-        WithdrawalNotice notice = generateWithdrawalNotice(withdrawalNoticeRequest, product, investor);
+        WithdrawalNotice notice = null;
+
+        if (investor.getId() == product.getInvestor().getId()){
+            notice = generateWithdrawalNotice(withdrawalNoticeRequest, product, investor);
+        } else {
+            throw new InvestorIdMismatchException("Investor doesn't own product with id: " + product.getId());
+        }
+
         BigDecimal prevBal = product.getBalance();
         BigDecimal newBal = prevBal.subtract(withdrawalNoticeRequest.getRequestedAmount());
 
@@ -105,9 +113,10 @@ public class WithdrawalService {
     private Product getProductById(Long id) {
         Product product;
         try {
+            Objects.requireNonNull(id, "Product ID can't be null");
             product = productRepository.getReferenceById(id);
         } catch (EntityNotFoundException productNotFound) {
-            logger.error("Product not found.", productNotFound);
+            logger.error("Product not found with id: "+ id);
             throw new NotFoundException("Product not found.", productNotFound);
         }
         return product;
@@ -119,7 +128,7 @@ public class WithdrawalService {
             Objects.requireNonNull(id, "Investor ID can't be null");
             investor = investorRepository.getReferenceById(id);
         } catch (EntityNotFoundException investorNotFound) {
-            logger.error("Investor not found.", investorNotFound);
+            logger.error("Investor not found with id "+ id);
             throw new NotFoundException("Investor not found.", investorNotFound);
         } 
         return investor;

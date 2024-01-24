@@ -28,10 +28,15 @@ public class CustomExceptionHandler {
 
     @ExceptionHandler(NotFoundException.class)
     public ResponseEntity<String> handleNotFoundException(NotFoundException notFoundException) {
-        return new ResponseEntity<>("RNot found Exception Occurred: " + 
-        notFoundException.getMessage(), HttpStatus.BAD_REQUEST);
+        return new ResponseEntity<>("Not found Exception Occurred: " + 
+        notFoundException.getMessage(), HttpStatus.NOT_FOUND);
     }
 
-    // Add more exception handlers as needed
+    @ExceptionHandler(InvestorIdMismatchException.class)
+    public ResponseEntity<String> handleInvestorIdMismatchException(InvestorIdMismatchException investorIdMismatchException) {
+        return new ResponseEntity<>("Investor Product Exception Occurred: " + 
+        investorIdMismatchException.getMessage(), HttpStatus.FORBIDDEN);
+    }
+
 }
 

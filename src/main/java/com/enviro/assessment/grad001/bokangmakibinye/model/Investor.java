@@ -97,5 +97,12 @@ public class Investor {
         this.id = id;
     }
 
+    @Override
+    public String toString() {
+        return "Investor [id=" + id + ", firstName=" + firstName + ", lastName=" + lastName + ", address=" + address
+                + ", contact=" + contact + ", dateOfBirth=" + dateOfBirth + ", products=" + products
+                + ", withdrawalNotices=" + withdrawalNotices + "]";
+    }
+
     
 }
