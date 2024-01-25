@@ -38,5 +38,11 @@ public class CustomExceptionHandler {
         investorIdMismatchException.getMessage(), HttpStatus.FORBIDDEN);
     }
 
+    @ExceptionHandler(AgeLimitException.class)
+    public ResponseEntity<String> handleAgeLimitException(AgeLimitException ageLimitException) {
+        return new ResponseEntity<>("Age Limit Exception Occurred: " + 
+        ageLimitException.getMessage(), HttpStatus.FORBIDDEN);
+    }
+
 }
 

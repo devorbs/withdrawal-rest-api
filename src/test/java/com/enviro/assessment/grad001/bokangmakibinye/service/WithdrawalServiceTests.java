@@ -1,190 +1,206 @@
-// package com.enviro.assessment.grad001.bokangmakibinye.service;
+package com.enviro.assessment.grad001.bokangmakibinye.service;
 
-// import static org.junit.jupiter.api.Assertions.assertEquals;
-// import static org.junit.jupiter.api.Assertions.assertNotNull;
-// import static org.junit.jupiter.api.Assertions.assertThrows;
-// import static org.mockito.Mockito.when;
+import com.enviro.assessment.grad001.bokangmakibinye.exceptions.*;
+import com.enviro.assessment.grad001.bokangmakibinye.model.*;
+import com.enviro.assessment.grad001.bokangmakibinye.repository.*;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.Mockito.*;
 
-// import java.math.BigDecimal;
-// import java.time.LocalDate;
-// import java.util.Optional;
+@ExtendWith(MockitoExtension.class)
+public class WithdrawalServiceTests {
 
-// import org.junit.jupiter.api.Test;
-// import org.junit.jupiter.api.extension.ExtendWith;
-// import org.mockito.InjectMocks;
-// import org.mockito.Mock;
-// import org.mockito.junit.jupiter.MockitoExtension;
+    @Mock
+    private ProductRepository productRepository;
 
-// import com.enviro.assessment.grad001.bokangmakibinye.exceptions.InvalidWithdrawalAmountException;
-// import com.enviro.assessment.grad001.bokangmakibinye.exceptions.InvalidWithdrawalRequestException;
-// import com.enviro.assessment.grad001.bokangmakibinye.exceptions.ProductNotAvailableException;
-// import com.enviro.assessment.grad001.bokangmakibinye.model.Investor;
-// import com.enviro.assessment.grad001.bokangmakibinye.model.Product;
-// import com.enviro.assessment.grad001.bokangmakibinye.model.WithdrawalNoticeRequest;
-// import com.enviro.assessment.grad001.bokangmakibinye.model.WithdrawalResponse;
-// import com.enviro.assessment.grad001.bokangmakibinye.repository.InvestorRepository;
-// import com.enviro.assessment.grad001.bokangmakibinye.repository.ProductRepository;
-// import com.enviro.assessment.grad001.bokangmakibinye.repository.WithdrawalRepository;
+    @Mock
+    private InvestorRepository investorRepository;
 
-// @ExtendWith(MockitoExtension.class)
-// public class WithdrawalServiceTests {
-    
-//     @Mock
-//     private WithdrawalRepository withdrawalRepository;
+    @Mock
+    private WithdrawalNoticeRepository withdrawalNoticeRepository;
 
-//     @Mock
-//     private ProductRepository productRepository;
+    @InjectMocks
+    private WithdrawalService withdrawalService;
 
-//     @Mock
-//     private InvestorRepository investorRepository;
+    @Test
+    public void testVerifyWithdrawalNoticeDetails_PositiveAmount() {
+        //Arrange
+        Investor investorMock = createValidInvestor(LocalDate.of(1994, 8, 17), "Bokang", 1L, "Makibs", new ArrayList<Product>());
+        Product product1Mock = createValidProduct("RT", "retirement", "1000000.0", 1L, investorMock);
 
-//     @InjectMocks
-//     private WithdrawalService withdrawalService;
+        //Act
+        product1Mock.setBalance(new BigDecimal("1000000.0"));
+        investorMock.getProducts().add(product1Mock);
+     
+        //Assert
+        when(productRepository.getReferenceById(1L)).thenReturn(product1Mock);
+        WithdrawalNoticeRequest request = createValidWithdrawalNoticeRequest(1L, 1L, new BigDecimal("1000.0"), LocalDate.of(2050,05,12));
+        assertTrue(withdrawalService.verifyWithdrawalNoticeDetails(request));
+    }
 
+    @Test
+    public void testVerifyWithdrawalNoticeDetails_NegativeAmount() {
+        //Arrange
+        Investor investorMock = createValidInvestor(LocalDate.of(1994, 8, 17), "Bokang", 1L, "Makibs", new ArrayList<Product>());
+        Product product1Mock = createValidProduct("RT", "retirement", "1000000.0", 1L, investorMock);
 
-//     @Test
-//     public void testCreateWithdrawal() {
-//         // Mock data
-//         WithdrawalNoticeRequest withdrawalRequest = new WithdrawalNoticeRequest();
-//         withdrawalRequest.setInvestorId(1L);
-//         withdrawalRequest.setProductId(2L);
-//         withdrawalRequest.setAccountNumber("123456789");
-//         withdrawalRequest.setAccountHolderDetails("John Doe");
-//         withdrawalRequest.setBankName("Bank XYZ");
-//         withdrawalRequest.setWithdrawalAmount(BigDecimal.valueOf(1000));
+        //Act
+        product1Mock.setBalance(new BigDecimal("1000000.0"));
+        investorMock.getProducts().add(product1Mock);
+     
+        //Assert
+        when(productRepository.getReferenceById(1L)).thenReturn(product1Mock);
+        WithdrawalNoticeRequest request = createValidWithdrawalNoticeRequest(1L, 1L, new BigDecimal("-1000.0"), LocalDate.of(2050,05,12));
 
-//         Investor mockInvestor = new Investor();
-//         mockInvestor.setId(1L);
-//         mockInvestor.setDateOfBirth(LocalDate.of(1994, 8, 17)); 
+        NegativeRequestAmountException exception = assertThrows(NegativeRequestAmountException.class,
+                () -> withdrawalService.verifyWithdrawalNoticeDetails(request));
+        assertEquals("Requested Amount cannot be a negative number.", exception.getMessage());
+    }
 
-//         Product mockProduct = new Product();
-//         mockProduct.setId(2L);
-//         mockProduct.setBalance(BigDecimal.valueOf(6000));
-//         mockProduct.setInvestor(mockInvestor);
-//         mockProduct.setType("savings");
+    @Test
+    public void testVerifyWithdrawalNoticeDetails_PastPayDate() {
+        //Arrange
+        Investor investorMock = createValidInvestor(LocalDate.of(1994, 8, 17), "Bokang", 1L, "Makibs", new ArrayList<Product>());
+        Product product1Mock = createValidProduct("RT", "retirement", "1000000.0", 1L, investorMock);
 
-//         when(productRepository.findById(2L)).thenReturn(Optional.of(mockProduct));
+        //Act
+        product1Mock.setBalance(new BigDecimal("1000000.0"));
+        investorMock.getProducts().add(product1Mock);
+     
+        //Assert
+        when(productRepository.getReferenceById(1L)).thenReturn(product1Mock);
+        WithdrawalNoticeRequest request = createValidWithdrawalNoticeRequest(1L, 1L, new BigDecimal("1000.0"), LocalDate.of(2000,05,12));
+        DateCheckFailedException exception = assertThrows(DateCheckFailedException.class,
+                () -> withdrawalService.verifyWithdrawalNoticeDetails(request));
+        assertEquals("Requested Paydate cannot be in the past.", exception.getMessage());
+    }
 
-//         // Assert
-//         WithdrawalResponse withdrawalResponse = withdrawalService.createWithdrawal(withdrawalRequest);
+    @Test
+    public void testVerifyWithdrawalNoticeDetails_ExceedsMaxAllowed() {
+        //Arrange
+        Investor investorMock = createValidInvestor(LocalDate.of(1994, 8, 17), "Bokang", 1L, "Makibs", new ArrayList<Product>());
+        Product product1Mock = createValidProduct("RT", "retirement", "1000.0", 1L, investorMock);
 
-//         assertNotNull(withdrawalResponse);
-//         assertEquals(BigDecimal.valueOf(5000), withdrawalResponse.getNewBalance());
-//         assertEquals(BigDecimal.valueOf(6000), withdrawalResponse.getPreviousBalance());
-//         assertEquals(BigDecimal.valueOf(1000), withdrawalResponse.getWithdrawnBalance());
-//     }
+        //Act
+ 
+        investorMock.getProducts().add(product1Mock);
+     
+        //Assert
+        when(productRepository.getReferenceById(1L)).thenReturn(product1Mock);
+        WithdrawalNoticeRequest request = createValidWithdrawalNoticeRequest(1L, 1L, new BigDecimal("950.0"), LocalDate.of(2050,05,12));
+        RequestedAmountExceedsMaxAllowedException exception = assertThrows(RequestedAmountExceedsMaxAllowedException.class,
+                () -> withdrawalService.verifyWithdrawalNoticeDetails(request));
+        assertEquals("Requested amount cannot be more than 90% of the current balance.", exception.getMessage());
+    }
 
-//     @Test
-//     public void testCreateWithdrawal_InvalidWithdrawalAmount() {
-//         // Mock data with an invalid withdrawal amount
-//         WithdrawalNoticeRequest withdrawalRequest = new WithdrawalNoticeRequest();
-//         withdrawalRequest.setInvestorId(1L);
-//         withdrawalRequest.setProductId(2L);
-//         withdrawalRequest.setAccountNumber("123456789");
-//         withdrawalRequest.setAccountHolderDetails("John Doe");
-//         withdrawalRequest.setBankName("Bank XYZ");
-//         withdrawalRequest.setWithdrawalAmount(BigDecimal.valueOf(4600)); // More than 90% of balance
-
-//         Investor mockInvestor = new Investor();
-//         mockInvestor.setId(1L);
-//         mockInvestor.setDateOfBirth(LocalDate.of(1991, 8, 17)); 
-
-//         Product mockProduct = new Product();
-//         mockProduct.setId(2L);
-//         mockProduct.setBalance(BigDecimal.valueOf(5000));
-//         mockProduct.setInvestor(mockInvestor);
-//         mockProduct.setType("savings");
-
-//         when(productRepository.findById(2L)).thenReturn(Optional.of(mockProduct));
-
-//         // Test the method and expect an InvalidWithdrawalAmountException
-//         assertThrows(InvalidWithdrawalAmountException.class, () -> withdrawalService.createWithdrawal(withdrawalRequest));
-//     }
-
-//     @Test
-//     public void testCreateWithdrawal_InvalidWithdrawalRequest() {
-//         // Mock data with missing withdrawal request data
-//         WithdrawalNoticeRequest withdrawalRequest = new WithdrawalNoticeRequest();
-//         withdrawalRequest.setInvestorId(1L);
-//         withdrawalRequest.setProductId(2L);
-
-//         assertThrows(InvalidWithdrawalRequestException.class, () -> withdrawalService.createWithdrawal(withdrawalRequest));
-//     }
-
-//     @Test
-//     public void testCreateWithdrawal_ProductNotFound() {
-//         // Mock data with a non-existent product ID
-//         WithdrawalNoticeRequest withdrawalRequest = new WithdrawalNoticeRequest();
-//         withdrawalRequest.setInvestorId(1L);
-//         withdrawalRequest.setProductId(999L);
-//         withdrawalRequest.setAccountNumber("123456789");
-//         withdrawalRequest.setAccountHolderDetails("John Doe");
-//         withdrawalRequest.setBankName("Bank XYZ");
-//         withdrawalRequest.setWithdrawalAmount(BigDecimal.valueOf(4600));
-
-//         when(productRepository.findById(999L)).thenReturn(Optional.empty());
-
-//         // Test the method and expect a ProductNotAvailableException
-//         assertThrows(ProductNotAvailableException.class, () -> withdrawalService.createWithdrawal(withdrawalRequest));
-//     }
+    @Test
+    public void testCreateWithdrawal_Successful() {
+        //Arrange
+        String withdrawalAmount = "950.0";
+        String productBalance = "1000.0";
+        WithdrawalNoticeRequest request = createValidWithdrawalNoticeRequest(1L, 1L, new BigDecimal(withdrawalAmount), LocalDate.of(2050,05,12));
+        Investor investor = createValidInvestor(LocalDate.of(1994, 8, 17), "Bokang", 1L, "Makibs", new ArrayList<Product>());
+        Product product = createValidProduct("RT", "retirement", productBalance, 1L, investor);
 
 
-//     @Test
-//     public void testCreateWithdrawal_RetirementProduct() {
-//         // Mock data with a retirement product for an investor below 65
-//         WithdrawalNoticeRequest withdrawalRequest = new WithdrawalNoticeRequest();
-//         withdrawalRequest.setInvestorId(1L);
-//         withdrawalRequest.setProductId(2L);
-//         withdrawalRequest.setAccountNumber("123456789");
-//         withdrawalRequest.setAccountHolderDetails("John Doe");
-//         withdrawalRequest.setBankName("Bank XYZ");
-//         withdrawalRequest.setWithdrawalAmount(BigDecimal.valueOf(1000));
+        when(productRepository.getReferenceById(anyLong())).thenReturn(product);
+        when(investorRepository.getReferenceById(anyLong())).thenReturn(investor);
+        WithdrawalNoticeResponse response = withdrawalService.createWithdrawal(request);
 
-//         Investor mockInvestor = new Investor();
-//         mockInvestor.setId(1L);
-//         mockInvestor.setDateOfBirth(LocalDate.of(1994, 8, 17));
+        //Assert
+        assertNotNull(response);
+        assertEquals(new BigDecimal(withdrawalAmount), response.getWithdrawnBalance());
+        assertEquals(new BigDecimal(productBalance).subtract(new BigDecimal(withdrawalAmount)), response.getNewBalance());
+        
+    }
 
-//         Product retirementProduct = new Product();
-//         retirementProduct.setId(2L);
-//         retirementProduct.setType("Retirement");
-//         retirementProduct.setBalance(BigDecimal.valueOf(5000));
-//         retirementProduct.setInvestor(mockInvestor);
+    @Test
+    public void testCreateWithdrawal_InvestorIdMismatch() {
+        String withdrawalAmount = "950.0";
+        String productBalance = "1000.0";
+        WithdrawalNoticeRequest request = createValidWithdrawalNoticeRequest(1L, 1L, new BigDecimal(withdrawalAmount), LocalDate.of(2050,05,12));
+        Investor investor1 = createValidInvestor(LocalDate.of(1994, 8, 17), "Bokang", 1L, "Makibs", new ArrayList<Product>());
+        Investor investor2 = createValidInvestor(LocalDate.of(1999, 3, 24), "Tshepo", 5L, "Mathe", new ArrayList<Product>());
+        Product product = createValidProduct("RT", "retirement", productBalance, 1L, investor2);
 
-//         when(productRepository.findById(2L)).thenReturn(Optional.of(retirementProduct));
+        when(productRepository.getReferenceById(anyLong())).thenReturn(product);
+        when(investorRepository.getReferenceById(anyLong())).thenReturn(investor1);
 
-//         // Test the method and expect a ProductNotAvailableException
-//         assertThrows(ProductNotAvailableException.class, () -> withdrawalService.createWithdrawal(withdrawalRequest));
-//     }
+        InvestorIdMismatchException exception = assertThrows(InvestorIdMismatchException.class,
+                () -> withdrawalService.createWithdrawal(request));
+        assertEquals("Investor doesn't own product with id: " + product.getId(), exception.getMessage());
+    }
 
-//     @Test
-//     public void testCreateWithdrawal_RetirementProduct_When_Valid() {
-//         // Mock data with a retirement product for an investor below 65
-//         WithdrawalNoticeRequest withdrawalRequest = new WithdrawalNoticeRequest();
-//         withdrawalRequest.setInvestorId(1L);
-//         withdrawalRequest.setProductId(2L);
-//         withdrawalRequest.setAccountNumber("123456789");
-//         withdrawalRequest.setAccountHolderDetails("John Doe");
-//         withdrawalRequest.setBankName("Bank XYZ");
-//         withdrawalRequest.setWithdrawalAmount(BigDecimal.valueOf(1000));
+    private WithdrawalNoticeRequest createValidWithdrawalNoticeRequest(Long investorId, Long productId, BigDecimal requestedAmnt, LocalDate paydate) {
+        WithdrawalNoticeRequest request = new WithdrawalNoticeRequest();
+        request.setAccountHolderName("John Doe");
+        request.setAccountNumber("123456789");
+        request.setInvestorId(investorId);
+        request.setProductId(productId);
+        request.setRequestedAmount(requestedAmnt);
+        request.setRequestedPaydate(paydate);
+        // request.setNoticeCreationDate(null);
+        return request;
+    }
 
-//         Investor mockInvestor = new Investor();
-//         mockInvestor.setId(1L);
-//         mockInvestor.setDateOfBirth(LocalDate.of(1916, 8, 17));
+    private Product createValidProduct(String productType, String productName, String productAmnt, Long id, Investor investor) {
+        Product product = new Product();
+        product.setBalance(new BigDecimal(productAmnt));
+        product.setId(id);
+        product.setType(productType);
+        product.setProductName(productName);
+        product.setInvestor(investor);
+        return product;
+    }
 
-//         Product retirementProduct = new Product();
-//         retirementProduct.setId(2L);
-//         retirementProduct.setType("Retirement");
-//         retirementProduct.setBalance(BigDecimal.valueOf(5000));
-//         retirementProduct.setInvestor(mockInvestor);
+    private Investor createValidInvestor(LocalDate dob, String fName, Long id, String lName, List<Product> products) {
+        Investor investor = new Investor();
+        investor.setAddress("XYZ");
+        investor.setContact("wuyy");
+        investor.setDateOfBirth(dob);
+        investor.setFirstName(fName);
+        investor.setId(id);
+        investor.setLastName(lName);
+        investor.setProducts(products);
+        return investor;
+    }
 
-//         when(productRepository.findById(2L)).thenReturn(Optional.of(retirementProduct));
+    private List<WithdrawalNotice> createValidWithdrawalNotices(Investor investor, Product product1, Product product2) {
+        WithdrawalNotice withdrawalNotice1 = new WithdrawalNotice();
+        withdrawalNotice1.setInvestor(investor);
+        withdrawalNotice1.setAccountHolderName("John Doe");
+        withdrawalNotice1.setAccountNumber("123456789");
+        withdrawalNotice1.setId(1L);
+        withdrawalNotice1.setNoticeCreationDate(LocalDate.of(2023, 12, 06));
+        withdrawalNotice1.setRequestedPaydate(LocalDate.of(2024, 03, 03));
+        withdrawalNotice1.setProduct(product1);
+        withdrawalNotice1.setRequestedAmount(new BigDecimal("1000.0"));
 
-//         WithdrawalResponse withdrawalResponse = withdrawalService.createWithdrawal(withdrawalRequest);
+        WithdrawalNotice withdrawalNotice2 = new WithdrawalNotice();
+        withdrawalNotice2.setInvestor(investor);
+        withdrawalNotice1.setAccountHolderName("John Doe");
+        withdrawalNotice1.setAccountNumber("123456789");
+        withdrawalNotice1.setId(2L);
+        withdrawalNotice1.setNoticeCreationDate(LocalDate.of(2023, 12, 06));
+        withdrawalNotice1.setRequestedPaydate(LocalDate.of(2024, 03, 03));
+        withdrawalNotice1.setProduct(product2);
+        withdrawalNotice1.setRequestedAmount(new BigDecimal("1000.0"));
 
-//         // Test the method and expect a ProductNotAvailableException
-//         assertNotNull(withdrawalResponse);
-//         assertEquals(BigDecimal.valueOf(4000), withdrawalResponse.getNewBalance());
-//         assertEquals(BigDecimal.valueOf(5000), withdrawalResponse.getPreviousBalance());
-//         assertEquals(BigDecimal.valueOf(1000), withdrawalResponse.getWithdrawnBalance());    }
-    
-// }
+        List<WithdrawalNotice> withdrawalNotices = new ArrayList<>();
+        withdrawalNotices.add(withdrawalNotice1);
+        withdrawalNotices.add(withdrawalNotice2);
+        return withdrawalNotices;
+    }
+}
+
